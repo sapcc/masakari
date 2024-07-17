@@ -1,4 +1,4 @@
-sqlalchemy-migrate
+migrate
 
 python-memcached
 pymemcache
