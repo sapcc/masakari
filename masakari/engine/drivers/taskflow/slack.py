@@ -25,39 +25,37 @@ ENV_SLACK_TOKEN = "SLACK_TOKEN"
 ENV_SLACK_CHANNEL = "SLACK_CHANNEL"
 
 
-class Slack(base.MasakariTask):
+class SlackBase(base.MasakariTask):
 
     def __init__(self, context, novaclient, **kwargs):
-        LOG.debug(f"Slack initializing")
-
-        kwargs['requires'] = ["host_name"]
-
-        self.context = context
-        self.novaclient = novaclient
-
         self.slack_token = os.environ[ENV_SLACK_TOKEN]
         self.slack_channel = os.environ[ENV_SLACK_CHANNEL]
 
-        super(Slack, self).__init__(context,
-                                    novaclient,
-                                    **kwargs)
+        if not self.slack_token:
+            LOG.fatal(f"{ENV_SLACK_TOKEN} unset")
+        elif not self.slack_channel:
+            LOG.fatal(f"{ENV_SLACK_CHANNEL} unset")
+        else:
+            self.slack = WebClient(token=self.slack_token)
+
+        super(SlackBase, self).__init__(context,
+                                        novaclient,
+                                        **kwargs)
+
+
+class SlackHost(SlackBase):
+
+    def __init__(self, context, novaclient, **kwargs):
+        kwargs['requires'] = ["host_name"]
+
+        super(SlackHost, self).__init__(context,
+                                        novaclient,
+                                        **kwargs)
 
     def execute(self, host_name, **kwargs):
-        LOG.debug(f"Slack execute started")
-
-        if not self.slack_token:
-            LOG.error(f"{ENV_SLACK_TOKEN} unset")
-            return
-
-        if not self.slack_channel:
-            LOG.error(f"{ENV_SLACK_CHANNEL} unset")
-            return
-
-        slack = WebClient(token=self.slack_token)
-        LOG.debug(f"Slack client initialized started")
-
         try:
-            slack.chat_postMessage(channel=self.slack_channel, text=f"HA Event occurred - Hypervisor: `{host_name}`")
+            self.slack.chat_postMessage(channel=self.slack_channel,
+                                        text=f"HA Event occurred - Hypervisor: `{host_name}`")
             LOG.debug(f"Slack message sent to {self.slack_channel}")
         except SlackApiError as e:
             LOG.error(e.response["error"])
