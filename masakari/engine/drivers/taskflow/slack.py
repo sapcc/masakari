@@ -30,7 +30,7 @@ class Slack(base.MasakariTask):
     def __init__(self, context, novaclient, **kwargs):
         LOG.debug(f"Slack initializing")
 
-        kwargs['requires'] = ["instance_uuid", "host_name"]
+        kwargs['requires'] = ["host_name"]
 
         self.context = context
         self.novaclient = novaclient
@@ -42,7 +42,7 @@ class Slack(base.MasakariTask):
                                     novaclient,
                                     **kwargs)
 
-    def execute(self, instance_uuid, host_name, **kwargs):
+    def execute(self, host_name, **kwargs):
         LOG.debug(f"Slack execute started")
 
         if not self.slack_token:
@@ -53,24 +53,11 @@ class Slack(base.MasakariTask):
             LOG.error(f"{ENV_SLACK_CHANNEL} unset")
             return
 
-        typ = None
-        name = None
-
         slack = WebClient(token=self.slack_token)
         LOG.debug(f"Slack client initialized started")
 
-        if host_name:
-            typ = "Hypervisor"
-            name = host_name
-        elif instance_uuid:
-            typ = "Instance"
-            name = instance_uuid
-
-        if typ and name:
-            try:
-                slack.chat_postMessage(channel=self.slack_channel, text=f"HA Event occurred - {typ}: `{name}`")
-                LOG.debug(f"Slack message sent to {self.slack_channel}")
-            except SlackApiError as e:
-                LOG.error(e.response["error"])
-        else:
-            LOG.warn("Slack message failed. Type/Name could not be identified.")
+        try:
+            slack.chat_postMessage(channel=self.slack_channel, text=f"HA Event occurred - Hypervisor: `{host_name}`")
+            LOG.debug(f"Slack message sent to {self.slack_channel}")
+        except SlackApiError as e:
+            LOG.error(e.response["error"])
