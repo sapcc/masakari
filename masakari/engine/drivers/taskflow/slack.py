@@ -28,6 +28,8 @@ ENV_SLACK_CHANNEL = "SLACK_CHANNEL"
 class Slack(base.MasakariTask):
 
     def __init__(self, context, novaclient, **kwargs):
+        LOG.debug(f"Slack initializing")
+
         kwargs['requires'] = ["instance_uuid", "host_name"]
 
         self.context = context
@@ -41,6 +43,8 @@ class Slack(base.MasakariTask):
                                     **kwargs)
 
     def execute(self, instance_uuid, host_name, **kwargs):
+        LOG.debug(f"Slack execute started")
+
         if not self.slack_token:
             LOG.error(f"{ENV_SLACK_TOKEN} unset")
             return
@@ -53,6 +57,7 @@ class Slack(base.MasakariTask):
         name = None
 
         slack = WebClient(token=self.slack_token)
+        LOG.debug(f"Slack client initialized started")
 
         if host_name:
             typ = "Hypervisor"
@@ -64,6 +69,7 @@ class Slack(base.MasakariTask):
         if typ and name:
             try:
                 slack.chat_postMessage(channel=self.slack_channel, text=f"HA Event occurred - {typ}: `{name}`")
+                LOG.debug(f"Slack message sent to {self.slack_channel}")
             except SlackApiError as e:
                 LOG.error(e.response["error"])
         else:
