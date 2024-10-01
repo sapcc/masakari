@@ -15,7 +15,7 @@
 
 from oslo_log import log as logging
 from slack_sdk.errors import SlackApiError
-from taskflow import task
+from masakari.engine.drivers.taskflow import base
 from slack_sdk import WebClient
 import os
 
@@ -25,7 +25,7 @@ ENV_SLACK_TOKEN = "SLACK_TOKEN"
 ENV_SLACK_CHANNEL = "SLACK_CHANNEL"
 
 
-class Slack(task.Task):
+class Slack(base.MasakariTask):
 
     def __init__(self, context, novaclient, **kwargs):
         kwargs['requires'] = ["instance_uuid", "host_name"]
