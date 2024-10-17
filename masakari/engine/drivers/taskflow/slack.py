@@ -42,6 +42,13 @@ class SlackBase(base.MasakariTask):
                                         novaclient,
                                         **kwargs)
 
+    def post_message(self, text):
+        try:
+            self.slack.chat_postMessage(channel=self.slack_channel, text=text)
+            LOG.debug(f"Slack message sent to {self.slack_channel}")
+        except SlackApiError as e:
+            LOG.error(e.response["error"])
+
 
 class SlackHost(SlackBase):
 
@@ -53,9 +60,17 @@ class SlackHost(SlackBase):
                                         **kwargs)
 
     def execute(self, host_name, **kwargs):
-        try:
-            self.slack.chat_postMessage(channel=self.slack_channel,
-                                        text=f"HA Event occurred - Hypervisor: `{host_name}`")
-            LOG.debug(f"Slack message sent to {self.slack_channel}")
-        except SlackApiError as e:
-            LOG.error(e.response["error"])
+        self.post_message(f"HA Event occurred - Hypervisor: `{host_name}`")
+
+
+class SlackInstance(SlackBase):
+
+    def __init__(self, context, novaclient, **kwargs):
+        kwargs['requires'] = ["instance_uuid"]
+
+        super(SlackInstance, self).__init__(context,
+                                            novaclient,
+                                            **kwargs)
+
+    def execute(self, instance_uuid, **kwargs):
+        self.post_message(f"HA Event occurred - Instance: `{instance_uuid}`")
