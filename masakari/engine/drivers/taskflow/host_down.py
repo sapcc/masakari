@@ -79,9 +79,9 @@ class HostDown(base.MasakariTask):
             password = os.environ.get(ENV_HOST_DOWN_PASSWORD)
 
             if not username:
-                LOG.fatal(f"{ENV_HOST_DOWN_USERNAME} unset")
+                LOG.error(f"{ENV_HOST_DOWN_USERNAME} unset")
             if not password:
-                LOG.fatal(f"{ENV_HOST_DOWN_PASSWORD} unset")
+                LOG.error(f"{ENV_HOST_DOWN_PASSWORD} unset")
 
             response = requests.post(f"{base_url}/SessionService/Sessions", json={
                 "UserName": username,
