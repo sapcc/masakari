@@ -175,11 +175,11 @@ class EvacuateInstancesTask(base.MasakariTask):
             if new_vm_state == 'stopped':
                 raise loopingcall.LoopingCallDone()
 
+        timer = loopingcall.FixedIntervalWithTimeoutLoopingCall(_wait_for_stop_confirmation)
+
         try:
             # confirm instance is stopped after recovery
             self.novaclient.stop_server(context, instance.id)
-            timer = loopingcall.FixedIntervalWithTimeoutLoopingCall(
-                _wait_for_stop_confirmation)
             timer.start(interval=CONF.verify_interval,
                         timeout=CONF.wait_period_after_power_off).wait()
         except loopingcall.LoopingCallTimeOut:
@@ -238,10 +238,10 @@ class EvacuateInstancesTask(base.MasakariTask):
                     raise loopingcall.LoopingCallDone()
 
         def _wait_for_evacuation():
+            timer = loopingcall.FixedIntervalWithTimeoutLoopingCall(_wait_for_evacuation_confirmation)
+
             try:
                 # add a timeout to the periodic call.
-                timer = loopingcall.FixedIntervalWithTimeoutLoopingCall(
-                    _wait_for_evacuation_confirmation)
                 timer.start(interval=CONF.verify_interval,
                             timeout=CONF.wait_period_after_evacuation).wait()
             except loopingcall.LoopingCallTimeOut:
