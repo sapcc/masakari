@@ -25,7 +25,7 @@ ENV_HOST_DOWN_USERNAME = "HOST_DOWN_USERNAME"
 ENV_HOST_DOWN_PASSWORD = "HOST_DOWN_PASSWORD"
 TOKEN = "X-Auth-Token"
 VERIFY = False
-NODE_NAME_PATTERN = "node[0-9]{3}-bb[0-9]{2,3}"
+NODE_NAME_PATTERN = "node[0-9]{3}-(bb|ap)[0-9]{2,3}"
 NETBOX_URL = "https://netbox.global.cloud.sap"
 
 
@@ -42,31 +42,35 @@ class HostDown(base.MasakariTask):
         # hardware console
         remote_console = None
         result = re.search(NODE_NAME_PATTERN, host_name)
-        name = result.group()
 
-        if name:
-            response = requests.get(f"{NETBOX_URL}/api/dcim/devices/?name={name}", json=True)
+        if result:
+            name = result.group()
 
-            if response.ok:
-                results = response.json()["results"]
-                results_len = len(results)
+            if name:
+                response = requests.get(f"{NETBOX_URL}/api/dcim/devices/?name={name}", json=True)
 
-                if results_len == 1:
-                    oob = results[0].get("oob_ip")
+                if response.ok:
+                    results = response.json()["results"]
+                    results_len = len(results)
 
-                    if oob:
-                        remote_console = oob["address"].split("/")[0]
-                        LOG.debug(f"{remote_console} found for {name} in netbox")
+                    if results_len == 1:
+                        oob = results[0].get("oob_ip")
+
+                        if oob:
+                            remote_console = oob["address"].split("/")[0]
+                            LOG.debug(f"{remote_console} found for {name} in netbox")
+                        else:
+                            LOG.error(f"no out of band address in netbox for {name}")
+                    elif results_len == 0:
+                        LOG.error(f"no results in netbox for {name}")
                     else:
-                        LOG.error(f"no out of band address in netbox for {name}")
-                elif results_len == 0:
-                    LOG.error(f"no results in netbox for {name}")
+                        LOG.error(f"more than one result in netbox for {name}")
                 else:
-                    LOG.error(f"more than one result in netbox for {name}")
+                    LOG.error(response.text)
             else:
-                LOG.error(response.text)
+                LOG.error(f"{name} ({host_name}) not found in netbox")
         else:
-            LOG.error(f"{name} ({host_name}) not found in netbox")
+            LOG.error(f"regex ({NODE_NAME_PATTERN}) failed on {host_name}")
 
         # redfish
         if remote_console:
