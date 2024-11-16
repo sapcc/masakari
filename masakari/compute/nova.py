@@ -260,3 +260,10 @@ class API(object):
         if len(computes) == 0:
             raise exception.ComputeNotFoundByName(
                 compute_name=compute_name)
+
+    @translate_nova_exception
+    def force_down(self, context, host_name, force_down):
+        nova = novaclient(context)
+        service = nova.services.list(host=host_name, binary='nova-compute')[0]
+        LOG.info('Force down nova-compute on %s', host_name)
+        nova.services.force_down(service.id, force_down)
