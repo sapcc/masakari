@@ -226,7 +226,18 @@ By default below two tasks will be part of this config option:-
 2. confirm_compute_node_disabled_task
 
 The allowed values for this option is comma separated dictionary of object
-names in between ``{`` and ``}``."""))
+names in between ``{`` and ``}``.""")),
+
+    cfg.Opt('instance_events',
+        type=types.Dict(
+            bounds=False,
+            value_type=types.List(bounds=True,
+                                  item_type=types.String(quotes=True))),
+            default={'QEMU_GUEST_AGENT_ERROR': ['STOPPED_FAILED'],
+                    'LIFECYCLE': ['STOPPED_FAILED'],
+                    'IO_ERROR': ['IO_ERROR_REPORT']},
+            help="""These are the events which needs to be processed by
+masakari in case of instance recovery failure."""),
 ]
 
 process_failure_opts = [

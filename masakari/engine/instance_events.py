@@ -13,23 +13,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-""" VM libvirt events
+import masakari.conf
 
-These are the events which needs to be processed by masakari in case of
-instance recovery failure.
-"""
-
-INSTANCE_EVENTS = {
-    # Add QEMU guest agent events here.
-    'QEMU_GUEST_AGENT_ERROR': ['STOPPED_FAILED'],
-    # Add more events and vir_domain_events here.
-    'LIFECYCLE': ['STOPPED_FAILED'],
-    'IO_ERROR': ['IO_ERROR_REPORT']
-}
+CONF = masakari.conf.CONF
 
 
 def is_valid_event(payload):
-    vir_domain_event_list = INSTANCE_EVENTS.get(payload.get('event'))
+    vir_domain_event_list = CONF.instance_events.get(payload.get('event'))
     if vir_domain_event_list and payload.get(
             'vir_domain_event') in vir_domain_event_list:
         return True
