@@ -16,10 +16,12 @@
 import masakari.conf
 
 CONF = masakari.conf.CONF
+TASKFLOW_CONF = CONF.taskflow_driver_recovery_flows
 
 
 def is_valid_event(payload):
-    vir_domain_event_list = CONF.instance_events.get(payload.get('event'))
+    vir_domain_event_list = TASKFLOW_CONF.instance_events.get(
+        payload.get('event'))
     if vir_domain_event_list and payload.get(
             'vir_domain_event') in vir_domain_event_list:
         return True
