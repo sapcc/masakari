@@ -382,3 +382,7 @@ class InstanceEvacuateFailed(MasakariException):
 
 class FailoverSegmentDisabled(MasakariException):
     msg_fmt = _('Failover segment is disabled.')
+
+
+class HostByServiceOrHostnameNotFound(NotFound):
+    msg_fmt = _("%(name)% not found in service list or hypervisor list")

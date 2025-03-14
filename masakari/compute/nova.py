@@ -18,6 +18,7 @@ Handles all requests to Nova.
 
 import functools
 import sys
+from datetime import datetime, timedelta
 
 from keystoneauth1 import exceptions as keystone_exception
 import keystoneauth1.loading
@@ -262,8 +263,88 @@ class API(object):
                 compute_name=compute_name)
 
     @translate_nova_exception
+    def get_hypervisors(self, context):
+        """Get all hypervisors"""
+        nova = novaclient(context)
+        LOG.info("Fetching all hypervisors from nova")
+        return nova.hypervisors.list()
+
+    @translate_nova_exception
     def force_down(self, context, host_name, force_down):
         nova = novaclient(context)
         service = nova.services.list(host=host_name, binary='nova-compute')[0]
         LOG.info('Force down nova-compute on %s', host_name)
         nova.services.force_down(service.id, force_down)
+
+
+class HypervisorHostnameCacheItem:
+    """ Hypervisor hostname to service name cache item """
+    def __init__(self, service_name, hypervisor_hostname):
+        self.timestamp = datetime.now()
+        self.service_name = service_name
+        self.hypervisor_hostname = hypervisor_hostname
+
+    def expired(self, max_seconds):
+        return self.timestamp + timedelta(0, max_seconds) < datetime.now()
+
+    def any(self, service_name_or_hypervisor_hostname):
+        return self.service_name == service_name_or_hypervisor_hostname or \
+            self.hypervisor_hostname == service_name_or_hypervisor_hostname
+
+
+class HypervisorHostnameCache:
+    """ Lookup service name by hypervisor hostname with cache """
+
+    def __init__(self, max_seconds):
+        self.items = []
+        self.nova = API()
+        self.max_seconds = max_seconds
+
+    def get_service_name(self,
+                         service_name_or_hypervisor_hostname,
+                         context):
+        # find in cache
+        item = self._get(service_name_or_hypervisor_hostname)
+
+        # remove expired item
+        if item != None and item.expired(self.max_seconds):
+            # item expired
+            LOG.info("hypervisor '%s' expired and removed from cache",
+                     item.hypervisor_hostname)
+            self.items.remove(item)
+            item = None
+
+        # not found in cache (or expired)
+        if item == None:
+            # find in nova and update cacche
+            self._update_items(context)
+            item = self._get(service_name_or_hypervisor_hostname)
+
+        if item == None:
+            # service name or hostname not found in cache and nova
+            raise exception.HostByServiceOrHostnameNotFound(
+                service_name_or_hypervisor_hostname)
+
+        return item.service_name
+
+    def _get(self, service_name_or_hypervisor_hostname):
+        return next((i for i in self.items if i.any(
+            service_name_or_hypervisor_hostname)), None)
+
+    def _update_items(self, context):
+        """ refresh hypervisors via nova api """
+
+        LOG.info("refreshing hypervisor cache")
+
+        self.items.clear()
+
+        for hypervisor in self.nova.get_hypervisors(context):
+            self.items.append(
+                HypervisorHostnameCacheItem(hypervisor.service.get(
+                    "host"), hypervisor.hypervisor_hostname)
+            )
+
+        LOG.info("%s hypervisors cached", len(self.items))
+
+
+hypervisor_hostname_cache = HypervisorHostnameCache(CONF.hostname_lookup_cache_expiration)

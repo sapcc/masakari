@@ -764,6 +764,44 @@ class NotificationAPITestCase(test.NoDBTestCase):
         self._assert_notification_data(
             self.notification, _make_notification_obj(result))
 
+    @mock.patch.object(nova_obj.hypervisor_hostname_cache, 'get_service_name')
+    @mock.patch.object(notification_obj.NotificationList, 'get_all')
+    @mock.patch.object(notification_obj, 'Notification')
+    @mock.patch.object(notification_obj.Notification, 'create')
+    @mock.patch.object(host_obj.Host, 'get_by_name')
+    def test_create_with_hostname_cache(self, mock_host_obj, mock_create, mock_notification_obj,
+                    mock_get_all, mock_hypervisor_hostname_cache):
+        self.override_config('hostname_lookup', True)
+
+        fake_notification = fakes_data.create_fake_notification(
+            type="COMPUTE_HOST", id=2, payload={
+                'event': 'STARTED', 'host_status': 'NORMAL',
+                'cluster_status': 'ONLINE'
+            },
+            source_host_uuid=uuidsentinel.fake_host, generated_time=NOW,
+            status="running",
+            notification_uuid=uuidsentinel.fake_notification_2
+        )
+        fake_notification_list = [self.notification, fake_notification]
+        mock_get_all.return_value = fake_notification_list
+        notification_data = {"hostname": "fake_host",
+                             "payload": {"event": "STARTED",
+                                         "host_status": "NORMAL",
+                                         "cluster_status": "OFFLINE"},
+                             "type": "VM",
+                             "generated_time": "2016-10-13T09:11:21.656788"}
+        mock_hypervisor_hostname_cache.return_value = notification_data["hostname"]
+        mock_host_obj.return_value = self.host
+        mock_notification_obj.return_value = self.notification
+
+        result = (self.notification_api.
+                  create_notification(self.context, notification_data))
+
+        self._assert_notification_data(
+            self.notification, _make_notification_obj(result))
+
+        mock_hypervisor_hostname_cache.assert_called_once()
+
     @mock.patch.object(api_utils, 'notify_about_notification_api')
     @mock.patch.object(notification_obj.NotificationList, 'get_all')
     @mock.patch.object(notification_obj.Notification, 'create')

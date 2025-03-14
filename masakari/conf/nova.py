@@ -55,6 +55,14 @@ nova_opts = [
                     'privileged account.'),
     cfg.StrOpt('os_system_scope',
                help='Scope for system operations.'),
+    cfg.BoolOpt('hostname_lookup',
+               default=False,
+               help='Supports hypervisor hostname for notification creation.'
+                    'It creates a host/service name relation in memory.'),
+    cfg.IntOpt('hostname_lookup_cache_expiration',
+               default=86400,
+               help='When a hostname cache entry expired in seconds.'
+                    'Reduced nova api calls.'),
 ]
 
 

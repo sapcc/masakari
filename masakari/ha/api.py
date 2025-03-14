@@ -296,6 +296,12 @@ class NotificationAPI(object):
         # Check whether host from which the notification came is already
         # present in failover segment or not
         host_name = notification_data.get('hostname')
+
+        # resolve via nova api in case of hypervisor hostname / service name differences
+        if CONF.hostname_lookup:
+            host_name = nova.hypervisor_hostname_cache.get_service_name(
+                host_name, context)
+
         host_object = objects.Host.get_by_name(context, host_name)
         host_on_maintenance = host_object.on_maintenance
 

@@ -12,6 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import datetime
 from http import HTTPStatus
 from unittest import mock
 
@@ -23,6 +24,7 @@ from masakari import context
 from masakari import exception
 from masakari import test
 from masakari.tests import uuidsentinel
+from masakari.compute.nova import hypervisor_hostname_cache
 
 
 class NovaClientTestCase(test.TestCase):
@@ -349,3 +351,55 @@ class NovaApiTestCase(test.TestCase):
         mock_novaclient.assert_called_once_with(self.ctx)
         mock_services.list.assert_called_once_with(binary='nova-compute',
                                                    host=host)
+
+    @mock.patch.object(nova.API, 'get_hypervisors')
+    def test_hypervisor_hostname_cache_get(self, mock_get_hypervisors):
+        service_name = "service1"
+        hostname = "hostname1"
+
+        mock_hypervisor = mock.MagicMock()
+        mock_hypervisor.hypervisor_hostname = hostname
+        mock_hypervisor.service = dict(host=service_name)
+        mock_get_hypervisors.return_value = [mock_hypervisor]
+
+        self.assertEqual(len(hypervisor_hostname_cache.items), 0)
+        self.assertEqual(
+            hypervisor_hostname_cache.get_service_name(
+                service_name, self.ctx), service_name
+        )
+        self.assertEqual(
+            hypervisor_hostname_cache.get_service_name(hostname, self.ctx), service_name)
+        self.assertEqual(len(hypervisor_hostname_cache.items), 1)
+        mock_get_hypervisors.assert_called_once_with(self.ctx)
+
+        self.assertRaises(exception.HostByServiceOrHostnameNotFound,
+            hypervisor_hostname_cache.get_service_name, "doesnotexist", self.ctx)
+
+        mock_get_hypervisors.assert_has_calls(
+            [mock.call(self.ctx), mock.call(self.ctx)])
+
+    @mock.patch.object(nova.API, 'get_hypervisors')
+    def test_hypervisor_hostname_cache_get_expired(self, mock_get_hypervisors):
+        service_name = "service1"
+        hostname = "hostname1"
+        max_seconds = 60
+
+        mock_hypervisor = mock.MagicMock()
+        mock_hypervisor.hypervisor_hostname = hostname
+        mock_hypervisor.service = dict(host=service_name)
+        mock_get_hypervisors.return_value = [mock_hypervisor]
+
+        hypervisor_hostname_cache._update_items(self.ctx)
+
+        item = hypervisor_hostname_cache.items[0]
+        self.assertFalse(item.expired(max_seconds))
+
+        item.timestamp = datetime.datetime(2000, 1, 1, 0, 0, 0, 0)
+
+        self.assertTrue(item.expired(max_seconds))
+
+        hypervisor_hostname_cache.get_service_name(
+            service_name, self.ctx)
+
+        mock_get_hypervisors.assert_has_calls(
+            [mock.call(self.ctx), mock.call(self.ctx)])
