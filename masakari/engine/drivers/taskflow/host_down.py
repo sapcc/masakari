@@ -23,6 +23,7 @@ LOG = logging.getLogger(__name__)
 
 ENV_HOST_DOWN_USERNAME = "HOST_DOWN_USERNAME"
 ENV_HOST_DOWN_PASSWORD = "HOST_DOWN_PASSWORD"
+ENV_HOST_DOWN_REBOOT = "HOST_DOWN_REBOOT"
 TOKEN = "X-Auth-Token"
 VERIFY = False
 NODE_NAME_PATTERN = "node[0-9]{3}-(bb|ap)[0-9]{2,3}"
@@ -77,6 +78,7 @@ class HostDown(base.MasakariTask):
             base_url = f"https://{remote_console}/redfish/v1"
             username = os.environ.get(ENV_HOST_DOWN_USERNAME)
             password = os.environ.get(ENV_HOST_DOWN_PASSWORD)
+            reboot = os.environ.get(ENV_HOST_DOWN_REBOOT, "0").lower() in ['true', '1', 'yes']
 
             if not username:
                 LOG.error(f"{ENV_HOST_DOWN_USERNAME} unset")
@@ -94,7 +96,7 @@ class HostDown(base.MasakariTask):
                 if session:
                     response = requests.post(f"{base_url}/Systems/System.Embedded.1/Actions/ComputerSystem.Reset",
                                              json={
-                                                 "ResetType": "ForceOff"
+                                                 "ResetType": "ForceRestart" if reboot else "ForceOff" 
                                              }, verify=VERIFY, headers={TOKEN: session})
 
                     if response.ok:
